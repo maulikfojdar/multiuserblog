@@ -2,7 +2,7 @@
 {% block content %}
 <br/>
 {% for post in posts %}
-<div style="margin-bottom: 10px;">    <span style="font-size: 2em; font-weight: bold;"> {{post.subject}} </span> <small style="float:right; font-style:italic;">Posted by {{post.user.name}} on {{post.created.strftime("%b %d, %Y")}}</small> </div>
+<div style="margin-bottom: 10px;">    <span style="font-size: 2em; font-weight: bold;"> <a href='/post/{{post.key().id()}}' style="color:#666666;">{{post.subject}} </a> </span> <small style="float:right; font-style:italic;">Posted by {{post.user.name}} on {{post.created.strftime("%b %d, %Y")}}</small> </div>
 {{post.content}}
 <br/>
 <br/>

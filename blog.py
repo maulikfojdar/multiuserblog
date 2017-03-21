@@ -5,6 +5,7 @@ import re
 import hashlib
 import hmac
 import random
+import time
 from string import letters
 from google.appengine.ext import db
 
@@ -131,6 +132,25 @@ class Post(db.Model):
         self._render_text = self.content.replace('\n', '<br>')
         return render_str("post.html", post=self)
 
+class Comment(db.Model):
+    post = db.ReferenceProperty(Post, required=True)
+    user = db.ReferenceProperty(User, required=True)
+    created = db.DateTimeProperty(auto_now_add=True)
+    text = db.TextProperty(required=True)
+    
+    # get number of comments for a post
+    @classmethod
+    def count_by_post_id(cls, post):
+        c = Comment.all().filter('post =', post)
+        return c.count()
+    
+    # get all comments for a specific post
+    @classmethod
+    def all_by_post_id(cls, post):
+        c = Comment.all().filter('post =', post).order('created')
+        return c
+
+
 class NewPost(Handler):
     def render_page(self, subject="", content="", error=""):
         self.render("newpost.html",subject=subject, content=content, error=error)
@@ -153,7 +173,136 @@ class NewPost(Handler):
         else:
             error = "Both fields are required"
             self.render_page("newpost.html", subject, content, error = error)
+
+class EditPost(Handler):
+    
+    def get(self, post_id):
+        key = db.Key.from_path("Post", int(post_id), parent=blog_key())
+        post = db.get(key)
+        
+        # check if the user is logged in
+        if self.user:
+            # check if this user is the author of this post
+            if post.user.key().id() == User.by_name(self.user.name).key().id():
+                # take the user to the edit post page
+                self.render("editPost.html", post=post)
+            # otherwise if this user is not the author of this post throw an
+            # error
+            else:
+                self.response.out.write("You cannot edit other user's posts")
+        # otherwise if the user is not logged in take them to the login page
+        else:
+            self.redirect("/login")
+
+    def post(self, post_id):
+        # get the key for this blog post
+        key = db.Key.from_path("Post", int(post_id), parent=blog_key())
+        post = db.get(key)
+        
+        # if the user clicks on update comment
+        if self.request.get("update"):
             
+            # get the subject, content and user id when the form is submitted
+            subject = self.request.get("subject")
+            content = self.request.get("content").replace('\n', '<br>')
+            
+            # check if this user is the author of this post
+            if post.user.key().id() == User.by_name(self.user.name).key().id():
+                # check if both the subject and content are filled
+                if subject and content:
+                    # update the blog post and redirect to the post page
+                    post.subject = subject
+                    post.content = content
+                    post.put()
+                    time.sleep(0.1)
+                    self.redirect('/post/%s' % str(post.key().id()))
+                # otherwise if both subject and content are not filled throw an
+                # error
+                else:
+                    post_error = "Please enter a subject and the blog content"
+                    self.render(
+                                "editpost.html",
+                                subject=subject,
+                                content=content,
+                                post_error=post_error)
+                    # otherwise if this user is not the author of this post throw an
+                    # error
+            else:
+                self.response.out.write("You cannot edit other user's posts")
+        # if the user clicks cancel take them to the post page
+        elif self.request.get("cancel"):
+            self.redirect('/post/%s' % str(post.key().id()))
+
+class EditComment(Handler):
+    
+    def get(self, post_id, comment_id):
+        # get the blog and comment from blog id and comment id
+        post = Post.get_by_id(int(post_id), parent=blog_key())
+        comment = Comment.get_by_id(int(comment_id))
+        # check if there is a comment associated with that id
+        if comment:
+            # check if this user is the author of this comment
+            if comment.user.name == self.user.name:
+                # take the user to the edit comment page and load the content
+                # of the comment
+                self.render("editcomment.html", comment_text=comment.text)
+            # otherwise if this user is the author of this comment throw and
+            # error
+            else:
+                error = "You cannot edit other users' comments'"
+                self.render("editcomment.html", edit_error=error)
+        # otherwise if there is no comment associated with that ID throw an
+        # error
+        else:
+            error = "This comment no longer exists"
+            self.render("editcomment.html", edit_error=error)
+
+    def post(self, post_id, comment_id):
+        # if the user clicks on update comment
+        if self.request.get("update_comment"):
+            # get the comment for that comment id
+            comment = Comment.get_by_id(int(comment_id))
+            # check if this user is the author of this comment
+            if comment.user.name == self.user.name:
+                # update the text of the comment and redirect to the post page
+                comment.text = self.request.get('comment_text')
+                comment.put()
+                time.sleep(0.1)
+                self.redirect('/post/%s' % str(post_id))
+                # otherwise if this user is the author of this comment throw and
+                # error
+            else:
+                error = "You cannot edit other users' comments'"
+                self.render(
+                        "editcomment.html",
+                        comment_text=comment.text,
+                        edit_error=error)
+        # if the user clicks on cancel take the user to the post page
+        elif self.request.get("cancel"):
+            self.redirect('/post/%s' % str(post_id))
+
+class DeleteComment(Handler):
+    
+    def get(self, post_id, comment_id):
+        # get the comment from the comment id
+        comment = Comment.get_by_id(int(comment_id))
+        # check if there is a comment associated with that id
+        if comment:
+            # check if this user is the author of this comment
+            if comment.user.name == self.user.name:
+                # delete the comment and redirect to the post page
+                db.delete(comment)
+                time.sleep(0.1)
+                self.redirect('/post/%s' % str(post_id))
+            # otherwise if this user is not the author of this comment throw an
+            # error
+            else:
+                self.write("You cannot delete other user's comments")
+        # otherwise if there is no comment associated with that id throw an
+        # error
+        else:
+            self.write("This comment no longer exists")
+
 class MainPage(Handler):
     def get(self):
         if self.user:
@@ -235,14 +384,88 @@ class Logout(Handler):
         self.redirect('/')
         
 class PostPage(Handler):
-    def get(self, post):
-        p = db.get(db.Key.from_path("Post", int(post), parent=blog_key()))
-        self.render("post.html", subject = p.subject, content = p.content,
-                    created = p.created)
+    def get(self, post_id):
+        post = db.get(db.Key.from_path("Post", int(post_id), parent=blog_key()))
+        comments_count = Comment.count_by_post_id(post);
+        post_comments = Comment.all_by_post_id(post);
+        self.render("post.html", post=post, comments_count = comments_count, post_comments = post_comments)
+
+    def post(self, post_id):
+        # get all the necessary parameters
+        key = db.Key.from_path("Post", int(post_id), parent=blog_key())
+        post = db.get(key)
+        user_id = User.by_name(self.user.name)
+        comments_count = Comment.count_by_post_id(post)
+        post_comments = Comment.all_by_post_id(post)
+        
+        # check if the user is logged in
+        if self.user:
+            # if the user clicks on add comment get the comment text first
+            if self.request.get("add_comment"):
+                comment_text = self.request.get("comment_text")
+                # check if there is anything entered in the comment text area
+                if comment_text:
+                    # add comment to the comments database and refresh page
+                    c = Comment(post=post, user=User.by_name(self.user.name), text=comment_text)
+                    c.put()
+                    time.sleep(0.1)
+                    self.redirect('/post/%s' % str(post.key().id()))
+                # otherwise if nothing has been entered in the text area throw
+                # an error
+                else:
+                    comment_error = "Please enter a comment in the text area to post"
+                    self.render(
+                                "post.html",
+                                post=post,
+                                comments_count=comments_count,
+                                post_comments=post_comments,
+                                comment_error=comment_error)
+            # if the user clicks on edit post
+            if self.request.get("edit"):
+                # check if the user is the author of this post
+                if post.user.key().id() == User.by_name(self.user.name).key().id():
+                    # take the user to edit post page
+                    self.redirect('/edit/%s' % str(post.key().id()))
+                    # otherwise if the user is not the author of this post throw an
+                # error
+                else:
+                    error = "You cannot edit other user's posts"
+                    self.render(
+                                "post.html",
+                                post=post,
+                                comments_count=comments_count,
+                                post_comments=post_comments,
+                                error=error)
+            # if the user clicks on delete
+            if self.request.get("delete"):
+                # check if the user is the author of this post
+                if post.user.key().id() == User.by_name(self.user.name).key().id():
+                    # delete the post and redirect to the main page
+                    db.delete(key)
+                    time.sleep(0.1)
+                    self.redirect('/')
+                # otherwise if the user is not the author of this post throw an
+                # error
+                else:
+                    error = "You cannot delete other user's posts"
+                    self.render(
+                                "post.html",
+                                post=post,
+                                comments_count=comments_count,
+                                post_comments=post_comments,
+                                error=error)
+        # otherwise if the user is not logged in take them to the login page
+        else:
+            self.redirect("/login")
+
          
 app = webapp2.WSGIApplication([('/', MainPage),
                                ('/newpost', NewPost),
                                ('/signup', Signup),
                                ('/login', Login),
                                ('/logout', Logout),
-                               ('/post/([0-9]+)', PostPage)], debug=True)
+                               ('/post/([0-9]+)', PostPage),
+                               ('/edit/([0-9]+)', EditPost),
+                               ('/post/([0-9]+)/editcomment/([0-9]+)', EditComment),
+                               ('/post/([0-9]+)/deletecomment/([0-9]+)', DeleteComment)
+                               ], debug=True)
