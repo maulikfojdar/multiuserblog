@@ -305,11 +305,9 @@ class DeleteComment(Handler):
 
 class MainPage(Handler):
     def get(self):
-        if self.user:
             posts = db.GqlQuery("SELECT * FROM Post ORDER BY created DESC")
-            self.render("main.html", posts = posts, username = self.user.name)
-        else:
-            self.redirect("/signup");
+            if posts:
+                self.render("main.html", posts = posts)
 
 class Signup(Handler):
     def get(self):
