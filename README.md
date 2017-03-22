@@ -2,7 +2,7 @@
 
 This is a simple blog that enables users to register and add articles. Registered users can comment on users' posts and edit/delete their own posts.
 
-The public url for this blog can be found at: http://multiuserblog-app.appspot.com
+The public url for this blog can be found at: https://multiuserblog-app.appspot.com
 
 ==Instructions on how to use it==
 
