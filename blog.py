@@ -9,63 +9,78 @@ import time
 from string import letters
 from google.appengine.ext import db
 
-template_dir= os.path.join(os.path.dirname(__file__), 'templates')
-jinja_env = jinja2.Environment(loader = jinja2.FileSystemLoader(template_dir),
-                               autoescape = True)
+template_dir = os.path.join(os.path.dirname(__file__), 'templates')
+jinja_env = jinja2.Environment(loader=jinja2.FileSystemLoader(template_dir),
+                               autoescape=True)
 
-secret= "secret"
+secret = "secret"
 
 USER_RE = re.compile(r"^[a-zA-Z0-9_-]{3,20}$")
+
+
 def valid_username(username):
     return USER_RE.match(username)
 
 PASS_RE = re.compile(r"^.{3,20}$")
+
+
 def valid_password(password):
     return PASS_RE.match(password)
 
 EMAIL_RE = re.compile(r"[\S]+@[\S]+.[\S]+$")
+
+
 def valid_email(email):
     return EMAIL_RE.match(email)
 
+
 def make_secure_val(val):
     return "%s|%s" % (val, hmac.new(secret, val).hexdigest())
+
 
 def check_secure_val(secure_val):
     val = secure_val.split('|')[0]
     if secure_val == make_secure_val(val):
         return val
-    
-def make_salt(length = 5):
+
+
+def make_salt(length=5):
     return ''.join(random.choice(letters) for x in xrange(length))
 
-def make_pw_hash(name, pw, salt = None):
+
+def make_pw_hash(name, pw, salt=None):
     if not salt:
         salt = make_salt()
     h = hashlib.sha256(name + pw + salt).hexdigest()
-    return '%s,%s' %  (salt, h)
+    return '%s,%s' % (salt, h)
+
 
 def valid_pw(name, password, h):
     salt = h.split(',')[0]
     return h == make_pw_hash(name, password, salt)
 
-def users_key(group = 'default'):
+
+def users_key(group='default'):
     return db.Key.from_path('users', group)
 
-def blog_key(name = 'default'):
+
+def blog_key(name='default'):
     return db.Key.from_path('Blog', name)
+
 
 def render_str(template, **params):
     t = jinja_env.get_template(template)
     return t.render(params)
-    
+
+
 class Handler(webapp2.RequestHandler):
     def render(self, template, **kw):
         self.write(self.render_str(template, **kw))
-    
+
     def render_str(self, template, **params):
         params['user'] = self.user
         return render_str(template, **params)
-    
+
     def write(self, *a, **kw):
         self.response.out.write(*a, **kw)
 
@@ -90,14 +105,15 @@ class Handler(webapp2.RequestHandler):
     def logout(self):
         self.response.headers.add_header('Set-Cookie', 'user_id=; Path=/')
 
+
 class User(db.Model):
-    name = db.StringProperty(required = True)
-    pw_hash = db.StringProperty(required = True)
+    name = db.StringProperty(required=True)
+    pw_hash = db.StringProperty(required=True)
     email = db.StringProperty()
 
     @classmethod
     def by_id(cls, uid):
-        return User.get_by_id(uid, parent = users_key())
+        return User.get_by_id(uid, parent=users_key())
 
     @classmethod
     def by_name(cls, name):
@@ -105,12 +121,12 @@ class User(db.Model):
         return u
 
     @classmethod
-    def register(cls, name, pw, email = None):
+    def register(cls, name, pw, email=None):
         pw_hash = make_pw_hash(name, pw)
-        return User(parent = users_key(),
-                    name = name,
-                    pw_hash = pw_hash,
-                    email = email)
+        return User(parent=users_key(),
+                    name=name,
+                    pw_hash=pw_hash,
+                    email=email)
 
     @classmethod
     def login(cls, name, pw):
@@ -118,11 +134,11 @@ class User(db.Model):
         if u and valid_pw(name, pw, u.pw_hash):
             return u
 
-    
+
 class Post(db.Model):
-    subject = db.StringProperty(required = True)
-    content = db.TextProperty(required = True)
-    created = db.DateTimeProperty(auto_now_add = True)
+    subject = db.StringProperty(required=True)
+    content = db.TextProperty(required=True)
+    created = db.DateTimeProperty(auto_now_add=True)
     last_modified = db.DateTimeProperty(auto_now=True)
     user = db.ReferenceProperty(User,
                                 required=True,
@@ -132,18 +148,19 @@ class Post(db.Model):
         self._render_text = self.content.replace('\n', '<br>')
         return render_str("post.html", post=self)
 
+
 class Comment(db.Model):
     post = db.ReferenceProperty(Post, required=True)
     user = db.ReferenceProperty(User, required=True)
     created = db.DateTimeProperty(auto_now_add=True)
     text = db.TextProperty(required=True)
-    
+
     # get number of comments for a post
     @classmethod
     def count_by_post_id(cls, post):
         c = Comment.all().filter('post =', post)
         return c.count()
-    
+
     # get all comments for a specific post
     @classmethod
     def all_by_post_id(cls, post):
@@ -153,8 +170,11 @@ class Comment(db.Model):
 
 class NewPost(Handler):
     def render_page(self, subject="", content="", error=""):
-        self.render("newpost.html",subject=subject, content=content, error=error)
-        
+        self.render("newpost.html",
+                    subject=subject,
+                    content=content,
+                    error=error)
+
     def get(self):
         if self.user:
             self.render_page()
@@ -167,19 +187,24 @@ class NewPost(Handler):
         user_id = User.by_name(self.user.name)
 
         if subject and content:
-            new_post = Post(parent = blog_key(), subject = subject, content = content, user = user_id)
+            new_post = Post(parent=blog_key(),
+                            subject=subject,
+                            content=content,
+                            user=user_id)
             new_post.put()
             self.redirect("/post/%s" % str(new_post.key().id()))
         else:
             error = "Both fields are required"
-            self.render_page("newpost.html", subject, content, error = error)
+            self.render_page("newpost.html",
+                             subject, content,
+                             error=error)
+
 
 class EditPost(Handler):
-    
     def get(self, post_id):
         key = db.Key.from_path("Post", int(post_id), parent=blog_key())
         post = db.get(key)
-        
+
         # check if the user is logged in
         if self.user:
             # check if this user is the author of this post
@@ -198,14 +223,14 @@ class EditPost(Handler):
         # get the key for this blog post
         key = db.Key.from_path("Post", int(post_id), parent=blog_key())
         post = db.get(key)
-        
+
         # if the user clicks on update comment
         if self.request.get("update"):
-            
+
             # get the subject, content and user id when the form is submitted
             subject = self.request.get("subject")
             content = self.request.get("content").replace('\n', '<br>')
-            
+
             # check if this user is the author of this post
             if post.user.key().id() == User.by_name(self.user.name).key().id():
                 # check if both the subject and content are filled
@@ -225,16 +250,16 @@ class EditPost(Handler):
                                 subject=subject,
                                 content=content,
                                 post_error=post_error)
-                    # otherwise if this user is not the author of this post throw an
-                    # error
+                    # otherwise if this user is not the author of this post
+                    # throw an error
             else:
                 self.response.out.write("You cannot edit other user's posts")
         # if the user clicks cancel take them to the post page
         elif self.request.get("cancel"):
             self.redirect('/post/%s' % str(post.key().id()))
 
+
 class EditComment(Handler):
-    
     def get(self, post_id, comment_id):
         # get the blog and comment from blog id and comment id
         post = Post.get_by_id(int(post_id), parent=blog_key())
@@ -269,8 +294,8 @@ class EditComment(Handler):
                 comment.put()
                 time.sleep(0.1)
                 self.redirect('/post/%s' % str(post_id))
-                # otherwise if this user is the author of this comment throw and
-                # error
+                # otherwise if this user is the author of this comment
+                # throw an error
             else:
                 error = "You cannot edit other users' comments'"
                 self.render(
@@ -281,8 +306,8 @@ class EditComment(Handler):
         elif self.request.get("cancel"):
             self.redirect('/post/%s' % str(post_id))
 
+
 class DeleteComment(Handler):
-    
     def get(self, post_id, comment_id):
         # get the comment from the comment id
         comment = Comment.get_by_id(int(comment_id))
@@ -303,11 +328,13 @@ class DeleteComment(Handler):
         else:
             self.write("This comment no longer exists")
 
+
 class MainPage(Handler):
     def get(self):
             posts = db.GqlQuery("SELECT * FROM Post ORDER BY created DESC")
             if posts:
-                self.render("main.html", posts = posts)
+                self.render("main.html", posts=posts)
+
 
 class Signup(Handler):
     def get(self):
@@ -320,7 +347,7 @@ class Signup(Handler):
         verify = self.request.get("verify")
         email = self.request.get("email")
 
-        params = dict(username = username, email = email)
+        params = dict(username=username, email=email)
 
         if not valid_username(username):
             params['error_username'] = "That's not a valid username"
@@ -331,34 +358,35 @@ class Signup(Handler):
             have_error = True
         elif password != verify:
             params['error_verify'] = "The passwords do not match!"
-            have_error=True
+            have_error = True
 
         if have_error:
             self.render("signup.html", **params)
         else:
-            #self.redirect("/?username="+username)
             u = User.by_name(username)
             if u:
                 msg = 'That user already exists.'
-                self.render('signup.html', error_username = msg)
+                self.render('signup.html', error_username=msg)
             else:
                 u = User.register(username, password, email)
                 u.put()
                 self.login(u)
                 self.redirect('/')
 
+
 class Register(Signup):
     def done(self):
-        #make sure the user doesn't already exist
+        # make sure the user doesn't already exist
         u = User.by_name(self.username)
         if u:
             msg = 'That user already exists.'
-            self.render('signup.html', error_username = msg)
+            self.render('signup.html', error_username=msg)
         else:
             u = User.register(self.username, self.password, self.email)
             u.put()
             self.login(u)
             self.redirect('/')
+
 
 class Login(Handler):
     def get(self):
@@ -374,19 +402,26 @@ class Login(Handler):
             self.redirect('/')
         else:
             msg = 'Invalid login'
-            self.render('login.html', error = msg)
+            self.render('login.html', error=msg)
+
 
 class Logout(Handler):
     def get(self):
         self.logout()
         self.redirect('/')
-        
+
+
 class PostPage(Handler):
     def get(self, post_id):
-        post = db.get(db.Key.from_path("Post", int(post_id), parent=blog_key()))
-        comments_count = Comment.count_by_post_id(post);
-        post_comments = Comment.all_by_post_id(post);
-        self.render("post.html", post=post, comments_count = comments_count, post_comments = post_comments)
+        post = db.get(db.Key.from_path("Post",
+                                       int(post_id),
+                                       parent=blog_key()))
+        comments_count = Comment.count_by_post_id(post)
+        post_comments = Comment.all_by_post_id(post)
+        self.render("post.html",
+                    post=post,
+                    comments_count=comments_count,
+                    post_comments=post_comments)
 
     def post(self, post_id):
         # get all the necessary parameters
@@ -395,7 +430,7 @@ class PostPage(Handler):
         user_id = User.by_name(self.user.name)
         comments_count = Comment.count_by_post_id(post)
         post_comments = Comment.all_by_post_id(post)
-        
+
         # check if the user is logged in
         if self.user:
             # if the user clicks on add comment get the comment text first
@@ -404,14 +439,17 @@ class PostPage(Handler):
                 # check if there is anything entered in the comment text area
                 if comment_text:
                     # add comment to the comments database and refresh page
-                    c = Comment(post=post, user=User.by_name(self.user.name), text=comment_text)
+                    c = Comment(post=post,
+                                user=User.by_name(self.user.name),
+                                text=comment_text)
                     c.put()
                     time.sleep(0.1)
                     self.redirect('/post/%s' % str(post.key().id()))
                 # otherwise if nothing has been entered in the text area throw
                 # an error
                 else:
-                    comment_error = "Please enter a comment in the text area to post"
+                    comment_error = "Please enter a comment\
+                                        in the text area to post"
                     self.render(
                                 "post.html",
                                 post=post,
@@ -421,11 +459,12 @@ class PostPage(Handler):
             # if the user clicks on edit post
             if self.request.get("edit"):
                 # check if the user is the author of this post
-                if post.user.key().id() == User.by_name(self.user.name).key().id():
+                if post.user.key().id() == \
+                            User.by_name(self.user.name).key().id():
                     # take the user to edit post page
                     self.redirect('/edit/%s' % str(post.key().id()))
-                    # otherwise if the user is not the author of this post throw an
-                # error
+                    # otherwise if the user is not the author of this post
+                    # throw an error
                 else:
                     error = "You cannot edit other user's posts"
                     self.render(
@@ -437,13 +476,14 @@ class PostPage(Handler):
             # if the user clicks on delete
             if self.request.get("delete"):
                 # check if the user is the author of this post
-                if post.user.key().id() == User.by_name(self.user.name).key().id():
+                if post.user.key().id() == \
+                            User.by_name(self.user.name).key().id():
                     # delete the post and redirect to the main page
                     db.delete(key)
                     time.sleep(0.1)
                     self.redirect('/')
-                # otherwise if the user is not the author of this post throw an
-                # error
+                # otherwise if the user is not the author of this post
+                # throw an error
                 else:
                     error = "You cannot delete other user's posts"
                     self.render(
@@ -452,11 +492,12 @@ class PostPage(Handler):
                                 comments_count=comments_count,
                                 post_comments=post_comments,
                                 error=error)
-        # otherwise if the user is not logged in take them to the login page
+        # otherwise if the user is not logged in take them to the
+        # login page
         else:
             self.redirect("/login")
 
-         
+
 app = webapp2.WSGIApplication([('/', MainPage),
                                ('/newpost', NewPost),
                                ('/signup', Signup),
@@ -464,6 +505,8 @@ app = webapp2.WSGIApplication([('/', MainPage),
                                ('/logout', Logout),
                                ('/post/([0-9]+)', PostPage),
                                ('/edit/([0-9]+)', EditPost),
-                               ('/post/([0-9]+)/editcomment/([0-9]+)', EditComment),
-                               ('/post/([0-9]+)/deletecomment/([0-9]+)', DeleteComment)
+                               ('/post/([0-9]+)/editcomment/([0-9]+)',
+                                EditComment),
+                               ('/post/([0-9]+)/deletecomment/([0-9]+)',
+                                DeleteComment)
                                ], debug=True)
