@@ -8,6 +8,7 @@
 </div>
 {% if user %}
     <form method="POST">
+        <input type="submit" class="btn btn-success" name='like' value='&#128077; {{likes}} likes'>
         <input type="submit" class="btn btn-info" name='edit' value='&#9998; edit'>
         <input type="submit" class="btn btn-danger" name='delete' value="&#9003; delete">
     </form>
@@ -30,8 +31,8 @@
                 </div>
                 <div class="pull-right">
                     {% if comment.user.name == user.name %}
-                        <a style="color:blue" href="/post/{{post.key().id()}}/editcomment/{{comment.key().id()}}">edit</a> | 
-                        <a style="color:blue" href="/post/{{post.key().id()}}/deletecomment/{{comment.key().id()}}">delete</a>
+                        <a style="color:blue" href="/blog/{{post.key().id()}}/editcomment/{{comment.key().id()}}">edit</a> | 
+                        <a style="color:blue" href="/blog/{{post.key().id()}}/deletecomment/{{comment.key().id()}}">delete</a>
                     {% endif %}
                 </div>
             </div>
@@ -50,5 +51,4 @@
         <input type="submit" class="btn btn-success" name="add_comment" value="Post">
     </form>
 {% endif %}
-
 {% endblock %}
