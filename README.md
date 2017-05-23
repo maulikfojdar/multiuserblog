@@ -2,8 +2,6 @@
 
 This is a simple blog that enables users to register and add articles. Registered users can comment on users' posts and edit/delete their own posts.
 
-The public url for this blog can be found at: https://multiuserblog-app.appspot.com
-
 # Local installation
 
 Clone this repo to your desktop, go to its root directory and run:
@@ -13,7 +11,7 @@ dev_appserver.py .
 
 Or you could try out the app here:
 
-https://multiuserblog-app.appspot.com
+[Maulik's blog] (https://multiuserblog-app.appspot.com)
 
 # Instructions on how to use it
 
