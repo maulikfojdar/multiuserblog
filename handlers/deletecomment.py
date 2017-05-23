@@ -10,6 +10,10 @@ from helper import *
 
 class DeleteComment(Handler):
     def get(self, post_id, comment_id):
+        if not self.user:
+            self.render("/login")
+            return
+        
         # get the comment from the comment id
         comment = Comment.get_by_id(int(comment_id))
         # check if there is a comment associated with that id

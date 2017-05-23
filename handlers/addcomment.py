@@ -18,6 +18,7 @@ class AddComment(Handler):
     def post(self, post_id, user_id):
         if not self.user:
             self.render('/login')
+            return
 
         comment_text = self.request.get("comment_text")
         # check if there is anything entered in the comment text area

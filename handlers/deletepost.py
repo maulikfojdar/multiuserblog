@@ -12,8 +12,8 @@ class DeletePost(Handler):
     def get(self, post_id):
         key = db.Key.from_path('Post', int(post_id), parent=blog_key())
         post = db.get(key)
-
-        if self.user and self.user.key().id() == post.user.key().id():
+        
+        if not (post is None) and self.user and self.user.key().id() == post.user.key().id():
 
             if post:
                 db.delete(key)
