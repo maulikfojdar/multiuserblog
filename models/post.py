@@ -8,6 +8,7 @@ class Post(db.Model):
     content = db.TextProperty(required=True)
     created = db.DateTimeProperty(auto_now_add=True)
     last_modified = db.DateTimeProperty(auto_now=True)
+    likes = db.IntegerProperty(default=0)
     user = db.ReferenceProperty(User,
                                 required=True,
                                 collection_name="posts")

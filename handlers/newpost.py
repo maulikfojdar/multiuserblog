@@ -32,7 +32,8 @@ class NewPost(Handler):
             else:
                 error = "Both fields are required"
                 self.render_page("newpost.html",
-                             subject, content,
-                             error=error)
+                                 subject,
+                                 content,
+                                 error=error)
         else:
             self.redirect("/login")

@@ -4,7 +4,7 @@ from helper import *
 
 
 class Login(Handler):
-    
+
     def get(self):
         self.render('login.html')
 

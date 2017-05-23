@@ -56,4 +56,3 @@ class EditComment(Handler):
         # if the user clicks on cancel take the user to the post page
         elif self.request.get("cancel"):
             self.redirect('/post/%s' % str(post_id))
-

@@ -31,6 +31,7 @@ def valid_password(password):
 def valid_email(email):
     return EMAIL_RE.match(email)
 
+
 # Common methods
 def make_secure_val(val):
     return "%s|%s" % (val, hmac.new(secret, val).hexdigest())

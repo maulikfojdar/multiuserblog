@@ -4,9 +4,8 @@ from helper import *
 
 
 class MainPage(Handler):
-    
-    
+
     def get(self):
-            posts = db.GqlQuery("SELECT * FROM Post ORDER BY created DESC")
-            if posts:
-                self.render("main.html", posts=posts)
+        posts = db.GqlQuery("SELECT * FROM Post ORDER BY created DESC")
+        if posts:
+            self.render("main.html", posts=posts)

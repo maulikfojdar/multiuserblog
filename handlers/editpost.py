@@ -10,43 +10,44 @@ from helper import *
 
 
 class EditPost(Handler):
+
     def get(self, post_id):
         key = db.Key.from_path("Post", int(post_id), parent=blog_key())
         post = db.get(key)
-        if not post:
-            return self.redirect("/login")
 
-        # check if the user is logged in
-        if self.user:
+        if post:
+
             # check if this user is the author of this post
-            if post.user.key().id() == User.by_name(self.user.name).key().id():
-                # take the user to the edit post page
-                self.render("editPost.html", post=post)
-            # otherwise if this user is not the author of this post throw an
-            # error
+            if self.user and self.user.key().id() == post.user.key().id():
+                self.render("editpost.html", post=post)
+
+            # check if the user is logged in
+            elif not self.user:
+                return self.redirect("/login")
+
             else:
                 self.response.out.write("You cannot edit other user's posts")
-        # otherwise if the user is not logged in take them to the login page
+
         else:
-            self.redirect("/login")
+            self.response.out.write("Not a valid post!")
 
     def post(self, post_id):
         # get the key for this blog post
         key = db.Key.from_path("Post", int(post_id), parent=blog_key())
         post = db.get(key)
-        if not post:
-            return self.redirect("/login")
 
-        # if the user clicks on update comment
-        if self.request.get("update"):
+        if not self.user:
+            return self.redirect('/login')
 
-            # get the subject, content and user id when the form is submitted
-            subject = self.request.get("subject")
-            content = self.request.get("content").replace('\n', '<br>')
+        if post:
 
-            # check if this user is the author of this post
-            if post.user.key().id() == User.by_name(self.user.name).key().id():
-                # check if both the subject and content are filled
+            # if the user clicks on update comment
+            if self.user and self.user.key().id() == post.user.key().id():
+
+                # get the subject, content and user when the form is submitted
+                subject = self.request.get("subject")
+                content = self.request.get("content").replace('\n', '<br>')
+
                 if subject and content:
                     # update the blog post and redirect to the post page
                     post.subject = subject
@@ -54,8 +55,7 @@ class EditPost(Handler):
                     post.put()
                     time.sleep(0.1)
                     self.redirect('/post/%s' % str(post.key().id()))
-                # otherwise if both subject and content are not filled throw an
-                # error
+
                 else:
                     post_error = "Please enter a subject and the blog content"
                     self.render(
@@ -63,10 +63,10 @@ class EditPost(Handler):
                                 subject=subject,
                                 content=content,
                                 post_error=post_error)
-                    # otherwise if this user is not the author of this post
-                    # throw an error
+            # otherwise if this user is not the author of this post
+            # throw an error
             else:
                 self.response.out.write("You cannot edit other user's posts")
-        # if the user clicks cancel take them to the post page
-        elif self.request.get("cancel"):
-            self.redirect('/post/%s' % str(post.key().id()))
+
+        else:
+            self.response.out.write("Not a valid post!")
