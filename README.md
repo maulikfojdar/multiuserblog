@@ -11,7 +11,7 @@ dev_appserver.py .
 
 Or you could try out the app here:
 
-[Maulik's blog] (https://multiuserblog-app.appspot.com)
+[Maulik's blog](https://multiuserblog-app.appspot.com)
 
 # Instructions on how to use it
 
